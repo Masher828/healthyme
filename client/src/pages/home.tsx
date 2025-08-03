@@ -34,13 +34,13 @@ export default function Home() {
   // Get today's meals
   const today = new Date().toISOString().split('T')[0];
   
-  const { data: meals = [] } = useQuery({
+  const { data: meals = [] } = useQuery<any[]>({
     queryKey: ['/api/meals', today],
     enabled: isAuthenticated,
   });
 
   // Get recent workouts
-  const { data: workouts = [] } = useQuery({
+  const { data: workouts = [] } = useQuery<any[]>({
     queryKey: ['/api/workouts'],
     enabled: isAuthenticated,
   });

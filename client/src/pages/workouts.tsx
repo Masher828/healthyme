@@ -40,7 +40,7 @@ export default function Workouts() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const { data: workouts = [] } = useQuery({
+  const { data: workouts = [] } = useQuery<any[]>({
     queryKey: ['/api/workouts'],
     enabled: isAuthenticated,
   });

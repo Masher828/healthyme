@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 
 export default function WeightChart() {
-  const { data: weightEntries = [] } = useQuery({
+  const { data: weightEntries = [] } = useQuery<any[]>({
     queryKey: ['/api/weight'],
   });
 

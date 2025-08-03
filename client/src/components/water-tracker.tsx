@@ -12,7 +12,7 @@ export default function WaterTracker() {
   const queryClient = useQueryClient();
   const today = new Date().toISOString().split('T')[0];
 
-  const { data: waterIntake } = useQuery({
+  const { data: waterIntake } = useQuery<any>({
     queryKey: ['/api/water', today],
   });
 

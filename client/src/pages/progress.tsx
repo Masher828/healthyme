@@ -28,12 +28,12 @@ export default function ProgressPage() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: weightEntries = [] } = useQuery({
+  const { data: weightEntries = [] } = useQuery<any[]>({
     queryKey: ['/api/weight'],
     enabled: isAuthenticated,
   });
 
-  const { data: bodyMeasurement } = useQuery({
+  const { data: bodyMeasurement } = useQuery<any>({
     queryKey: ['/api/measurements/latest'],
     enabled: isAuthenticated,
   });
@@ -43,7 +43,7 @@ export default function ProgressPage() {
   }
 
   const currentWeight = user?.currentWeight || (weightEntries[0]?.weight ? parseFloat(weightEntries[0].weight) : 0);
-  const goalWeight = user?.goalWeight ? parseFloat(user.goalWeight) : 65;
+  const goalWeight = user?.goalWeight ? parseFloat(user.goalWeight as string) : 65;
   const weightLost = weightEntries.length > 1 ? 
     parseFloat(weightEntries[weightEntries.length - 1].weight) - parseFloat(weightEntries[0].weight) : 0;
   

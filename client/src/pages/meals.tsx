@@ -46,7 +46,7 @@ export default function Meals() {
 
   const today = new Date().toISOString().split('T')[0];
 
-  const { data: meals = [] } = useQuery({
+  const { data: meals = [] } = useQuery<any[]>({
     queryKey: ['/api/meals', today],
     enabled: isAuthenticated,
   });

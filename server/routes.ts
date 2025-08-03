@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/weight', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const entries = await storage.getWeightEntries(userId, limit);
       res.json(entries);
     } catch (error) {
@@ -68,7 +68,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const data = insertWaterIntakeSchema.parse({ ...req.body, userId });
-      const intake = await storage.updateWaterIntake(userId, data.date, data.glasses);
+      const intake = await storage.updateWaterIntake(userId, data.date, data.glasses || 0);
       res.json(intake);
     } catch (error) {
       console.error("Error updating water intake:", error);
@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/workouts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const limit = req.query.limit ? parseInt(req.query.limit) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
       const workouts = await storage.getWorkouts(userId, limit);
       res.json(workouts);
     } catch (error) {
