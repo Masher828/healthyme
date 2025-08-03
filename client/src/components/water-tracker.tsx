@@ -1,88 +1,97 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Droplets } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { Droplets, Minus, Plus } from "lucide-react";
 
-export default function WaterTracker() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const today = new Date().toISOString().split('T')[0];
+interface WaterTrackerProps {
+  currentGlasses: number;
+  targetGlasses: number;
+  onUpdate: (glasses: number) => void;
+}
 
-  const { data: waterIntake } = useQuery<any>({
-    queryKey: ['/api/water', today],
-  });
-
-  const updateWaterMutation = useMutation({
-    mutationFn: async (glasses: number) => {
-      await apiRequest("POST", "/api/water", { date: today, glasses });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/water', today] });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to update water intake",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const currentGlasses = waterIntake?.glasses || 0;
-  const targetGlasses = 8;
-
-  const addGlass = () => {
+export function WaterTracker({ currentGlasses, targetGlasses, onUpdate }: WaterTrackerProps) {
+  const handleIncrement = () => {
     if (currentGlasses < targetGlasses) {
-      updateWaterMutation.mutate(currentGlasses + 1);
+      onUpdate(currentGlasses + 1);
     }
   };
 
+  const handleDecrement = () => {
+    if (currentGlasses > 0) {
+      onUpdate(currentGlasses - 1);
+    }
+  };
+
+  const progress = (currentGlasses / targetGlasses) * 100;
+
   return (
-    <Card className="shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Water Intake</h3>
-          <span className="text-sm text-primary font-medium" data-testid="water-progress">
-            {currentGlasses}/{targetGlasses} glasses
-          </span>
-        </div>
-        <div className="flex space-x-2 mb-4">
-          {Array.from({ length: targetGlasses }, (_, i) => (
+    <div className="space-y-4">
+      {/* Progress bar */}
+      <div className="flex items-center space-x-3">
+        <div className="flex-1">
+          <div className="flex justify-between text-sm text-gray-600 mb-2">
+            <span>{currentGlasses} glasses</span>
+            <span>{targetGlasses} goal</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
             <div 
-              key={i}
-              className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                i < currentGlasses ? 'bg-healthify-blue' : 'bg-gray-200'
-              }`}
-              data-testid={`water-glass-${i}`}
-            >
-              <Droplets className={`w-4 h-4 ${i < currentGlasses ? 'text-white' : 'text-gray-400'}`} />
-            </div>
-          ))}
+              className="bg-cyan-500 h-3 rounded-full transition-all duration-300"
+              style={{ width: `${Math.min(100, progress)}%` }}
+            />
+          </div>
         </div>
-        <Button 
-          onClick={addGlass}
-          disabled={currentGlasses >= targetGlasses || updateWaterMutation.isPending}
-          className="w-full bg-blue-50 text-healthify-blue hover:bg-blue-100 font-medium"
-          data-testid="add-water-button"
+      </div>
+
+      {/* Water glasses visualization */}
+      <div className="flex justify-center space-x-2 my-6">
+        {Array.from({ length: targetGlasses }, (_, index) => (
+          <div
+            key={index}
+            className={`w-8 h-10 rounded-b-lg border-2 ${
+              index < currentGlasses
+                ? 'border-cyan-500 bg-cyan-100'
+                : 'border-gray-300 bg-gray-50'
+            } flex items-end justify-center pb-1`}
+            data-testid={`water-glass-${index}`}
+          >
+            {index < currentGlasses && (
+              <Droplets className="w-4 h-4 text-cyan-500" />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Controls */}
+      <div className="flex items-center justify-center space-x-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleDecrement}
+          disabled={currentGlasses === 0}
+          data-testid="button-water-decrement"
         >
-          {currentGlasses >= targetGlasses ? "Goal Completed! 🎉" : "+ Add Glass"}
+          <Minus className="w-4 h-4" />
         </Button>
-      </CardContent>
-    </Card>
+        
+        <span className="text-lg font-semibold min-w-[3rem] text-center" data-testid="text-current-glasses">
+          {currentGlasses}/{targetGlasses}
+        </span>
+        
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleIncrement}
+          disabled={currentGlasses >= targetGlasses}
+          data-testid="button-water-increment"
+        >
+          <Plus className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* Encouragement message */}
+      {currentGlasses === targetGlasses && (
+        <div className="text-center text-green-600 font-medium animate-pulse">
+          🎉 Great job! You've reached your daily water goal!
+        </div>
+      )}
+    </div>
   );
 }

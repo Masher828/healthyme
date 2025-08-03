@@ -1,45 +1,58 @@
 # Overview
 
-HealthifyMe is a comprehensive health and fitness tracking web application that enables users to monitor their nutrition, workouts, weight progress, and overall wellness journey. The application provides a modern, mobile-first interface with features for meal logging, workout tracking, water intake monitoring, and progress visualization through charts and metrics.
+HealthifyMe Clone is a client-only demonstration application that replicates the core functionality of a health and fitness tracking platform. Built with React, TypeScript, and modern UI components, it provides a comprehensive interface for monitoring nutrition, workouts, weight progress, and overall wellness without requiring a backend server or database.
+
+This implementation uses mock data and localStorage for persistence, making it perfect for demonstrations, prototyping, or as a foundation for building a full-featured health app.
 
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
 
-# System Architecture
+# System Architecture (Client-Only)
 
 ## Frontend Architecture
-The client-side application is built using React 18 with TypeScript, utilizing a modern component-based architecture. The UI is constructed with shadcn/ui components built on top of Radix UI primitives, providing accessible and customizable interface elements. Styling is handled through Tailwind CSS with a custom design system that includes HealthifyMe-specific color variables and theming support.
+The application is built using React 18 with TypeScript, utilizing a modern component-based architecture. The UI is constructed with shadcn/ui components built on top of Radix UI primitives, providing accessible and customizable interface elements. Styling is handled through Tailwind CSS with responsive design patterns.
 
-The routing system uses Wouter for lightweight client-side navigation between different sections (Home, Meals, Workouts, Progress, Profile). State management is handled through React Query for server state synchronization and caching, with custom hooks for authentication and data fetching patterns.
+Key architectural decisions:
+- **Single Page Application (SPA)**: Client-side routing with Wouter for lightweight navigation
+- **Mock Authentication**: localStorage-based authentication system for demonstration
+- **Local State Management**: React hooks and local state for data management
+- **Type Safety**: Full TypeScript implementation with Zod validation schemas
+- **Responsive Design**: Mobile-first approach with bottom navigation
 
-## Backend Architecture
-The server follows a REST API architecture built on Express.js with TypeScript. The application uses a layered architecture pattern with clear separation between routes, storage layer, and database operations. The server implements middleware for request logging, error handling, and authentication.
+## Authentication System (Mock)
+The authentication system simulates a real login flow using localStorage for session persistence:
+- Mock user data with profile information and health metrics
+- Login/logout functionality with state persistence
+- Protected routes that redirect unauthenticated users
+- User context management through React hooks
 
-The storage layer abstracts database operations through a well-defined interface (`IStorage`) that handles all CRUD operations for users, weight entries, meals, workouts, water intake, and body measurements. This design pattern allows for easy testing and potential database migrations.
+## Data Management (Mock Data)
+All application data is stored in `client/src/lib/mockData.ts` and includes:
+- **User Profile**: Demo user with health stats and preferences
+- **Meal Entries**: Sample meals with nutrition information
+- **Workout Logs**: Exercise sessions with duration and calories
+- **Weight Tracking**: Historical weight entries for progress charts
+- **Water Intake**: Daily hydration tracking
 
-## Authentication System
-Authentication is implemented using OpenID Connect (OIDC) with Replit's authentication service. The system uses Passport.js strategies for handling the OAuth flow and maintains user sessions through PostgreSQL-backed session storage. Session management includes secure cookie configuration and automatic session cleanup.
-
-The authentication flow redirects unauthenticated users to the login endpoint and maintains user context throughout the application. Protected routes verify authentication status and handle unauthorized access gracefully.
-
-## Database Design
-The application uses PostgreSQL as the primary database with Drizzle ORM for type-safe database operations. The schema includes separate tables for users, weight entries, meals, workouts, water intake, body measurements, and session storage.
-
-Key design decisions include:
-- UUID primary keys for all entities to ensure uniqueness across distributed systems
-- Decimal precision for weight and measurement values to maintain accuracy
-- Date-based partitioning for time-series data like weight entries and meals
-- Foreign key relationships to maintain data integrity
-- Automatic timestamp tracking for audit trails
-
-## Data Validation
-Input validation is handled through Zod schemas that are shared between client and server (`shared/schema.ts`). This ensures consistent validation rules across the entire application and provides TypeScript type safety. The schemas define validation for all user inputs including meal entries, workout logs, and profile updates.
+## Component Architecture
+- **Pages**: Main application views (Home, Meals, Workouts, Progress, Profile)
+- **Components**: Reusable UI components (charts, trackers, forms)
+- **Hooks**: Custom React hooks for authentication and data management
+- **UI Library**: shadcn/ui components for consistent design
 
 ## Build System and Development
-The application uses Vite as the build tool for fast development and optimized production builds. The development setup includes hot module replacement, TypeScript checking, and asset optimization. The build process outputs static files for the client and bundled server code for deployment.
+The application uses Vite for development and build processes:
+- Hot Module Replacement for fast development
+- TypeScript compilation and type checking  
+- Tailwind CSS processing and optimization
+- Static file generation for deployment
 
-Development tooling includes ESBuild for server bundling, PostCSS for CSS processing, and Tailwind CSS for utility-first styling. The configuration supports both development and production environments with appropriate optimizations.
+## Minimal Server Setup
+A lightweight Express server serves the built client files and handles SPA routing:
+- Static file serving from build directory
+- Catch-all routing for client-side navigation
+- Health check endpoint for deployment verification
 
 # External Dependencies
 

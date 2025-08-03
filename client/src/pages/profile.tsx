@@ -1,49 +1,32 @@
-import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import Header from "@/components/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Bell, Moon, Globe, Ruler, HelpCircle, Shield, FileText, LogOut } from "lucide-react";
+import { Bell, Moon, Globe, Ruler, HelpCircle, Shield, FileText, LogOut, User, Mail, Calendar } from "lucide-react";
 
 export default function Profile() {
-  const { toast } = useToast();
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { isAuthenticated, isLoading, user, logout } = useAuth();
 
-  // Redirect to home if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
-  };
-
-  if (isLoading || !isAuthenticated) {
+  if (!isAuthenticated) {
     return null;
   }
 
-  const currentWeight = user?.currentWeight ? parseFloat(user.currentWeight) : 0;
+  const currentWeight = user?.currentWeight || 0;
   const height = user?.height || 0;
   const bmi = height > 0 && currentWeight > 0 ? (currentWeight / ((height / 100) ** 2)).toFixed(1) : 0;
 
   return (
-    <div className="pb-20">
-      <Header />
-      
-      <main className="p-4 space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900">Profile</h2>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Profile</h1>
+          <p className="text-gray-600">Manage your account and preferences</p>
+        </div>
 
         {/* User Info */}
         <Card className="shadow-sm">
@@ -58,9 +41,7 @@ export default function Profile() {
                 />
               ) : (
                 <div className="w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center">
-                  <span className="text-2xl text-primary font-bold">
-                    {user?.firstName?.[0] || user?.email?.[0] || 'U'}
-                  </span>
+                  <User className="w-8 h-8 text-primary" />
                 </div>
               )}
               <div className="flex-1">
@@ -69,128 +50,162 @@ export default function Profile() {
                     ? `${user.firstName} ${user.lastName}` 
                     : user?.email || 'User'}
                 </h3>
-                <p className="text-gray-600" data-testid="user-email">{user?.email}</p>
-                <p className="text-sm text-gray-500">Member since {new Date(user?.createdAt || '').toLocaleDateString()}</p>
+                <p className="text-gray-600 flex items-center gap-1" data-testid="user-email">
+                  <Mail className="w-4 h-4" />
+                  {user?.email}
+                </p>
+                <p className="text-sm text-gray-500 flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  Member since {new Date(user?.createdAt || '').toLocaleDateString()}
+                </p>
               </div>
-              <Button className="healthify-primary text-white font-medium" data-testid="edit-profile-button">
-                Edit
+              <Button variant="outline" data-testid="edit-profile-button">
+                Edit Profile
               </Button>
             </div>
-            
-            <div className="grid grid-cols-3 gap-4 text-center border-t pt-4">
-              <div>
-                <p className="text-2xl font-bold text-primary" data-testid="current-weight">{currentWeight || '--'}</p>
-                <p className="text-sm text-gray-600">Current Weight</p>
+
+            {/* Health Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600" data-testid="text-current-weight">
+                  {currentWeight || '--'} kg
+                </div>
+                <div className="text-sm text-gray-600">Current Weight</div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-healthify-blue" data-testid="height">{height || '--'}</p>
-                <p className="text-sm text-gray-600">Height (cm)</p>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600" data-testid="text-height">
+                  {height || '--'} cm
+                </div>
+                <div className="text-sm text-gray-600">Height</div>
               </div>
-              <div>
-                <p className="text-2xl font-bold text-healthify-yellow" data-testid="bmi">{bmi || '--'}</p>
-                <p className="text-sm text-gray-600">BMI</p>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600" data-testid="text-bmi">
+                  {bmi || '--'}
+                </div>
+                <div className="text-sm text-gray-600">BMI</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Settings */}
-        <Card className="shadow-sm">
-          <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Settings</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Bell className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">Push Notifications</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Notifications */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Bell className="w-5 h-5" />
+                Notifications
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Meal reminders</span>
+                  <Switch defaultChecked data-testid="switch-meal-reminders" />
                 </div>
-                <Switch defaultChecked data-testid="notifications-toggle" />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <Moon className="w-5 h-5 text-gray-400" />
-                  <span className="text-gray-700">Dark Mode</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Workout notifications</span>
+                  <Switch defaultChecked data-testid="switch-workout-notifications" />
                 </div>
-                <Switch data-testid="dark-mode-toggle" />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Progress updates</span>
+                  <Switch data-testid="switch-progress-updates" />
+                </div>
               </div>
-              
-              <button className="flex items-center space-x-3 w-full text-left py-2" data-testid="language-button">
-                <Globe className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">Language</span>
-                <span className="ml-auto text-gray-500">English</span>
-              </button>
-              
-              <button className="flex items-center space-x-3 w-full text-left py-2" data-testid="units-button">
-                <Ruler className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">Units</span>
-                <span className="ml-auto text-gray-500">Metric</span>
-              </button>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Health Goals */}
-        <Card className="shadow-sm">
+          {/* Preferences */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Preferences
+              </h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Dark mode</span>
+                  <Switch data-testid="switch-dark-mode" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Metric units</span>
+                  <Switch defaultChecked data-testid="switch-metric-units" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm">Weekly reports</span>
+                  <Switch defaultChecked data-testid="switch-weekly-reports" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Quick Actions */}
+        <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Health Goals</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Goal Weight</span>
-                <span className="font-medium" data-testid="goal-weight">
-                  {user?.goalWeight ? `${user.goalWeight} kg` : 'Not set'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Daily Calorie Goal</span>
-                <span className="font-medium" data-testid="calorie-goal">
-                  {user?.dailyCalorieGoal ? `${user.dailyCalorieGoal} cal` : '1,800 cal'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-700">Weekly Exercise Goal</span>
-                <span className="font-medium" data-testid="exercise-goal">
-                  {user?.weeklyExerciseGoal ? `${user.weeklyExerciseGoal} days` : '5 days'}
-                </span>
-              </div>
-              <Button className="w-full healthify-primary text-white font-medium mt-4" data-testid="update-goals-button">
-                Update Goals
+            <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Button variant="outline" className="justify-start" data-testid="button-body-measurements">
+                <Ruler className="w-4 h-4 mr-2" />
+                Body Measurements
+              </Button>
+              <Button variant="outline" className="justify-start" data-testid="button-help-support">
+                <HelpCircle className="w-4 h-4 mr-2" />
+                Help & Support
+              </Button>
+              <Button variant="outline" className="justify-start" data-testid="button-privacy-settings">
+                <Shield className="w-4 h-4 mr-2" />
+                Privacy Settings
+              </Button>
+              <Button variant="outline" className="justify-start" data-testid="button-terms-conditions">
+                <FileText className="w-4 h-4 mr-2" />
+                Terms & Conditions
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* Account Actions */}
-        <Card className="shadow-sm">
+        {/* Goals & Targets */}
+        <Card>
           <CardContent className="p-6">
-            <div className="space-y-3">
-              <button className="flex items-center space-x-3 w-full text-left py-2" data-testid="help-support-button">
-                <HelpCircle className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">Help & Support</span>
-              </button>
-              
-              <button className="flex items-center space-x-3 w-full text-left py-2" data-testid="privacy-policy-button">
-                <Shield className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">Privacy Policy</span>
-              </button>
-              
-              <button className="flex items-center space-x-3 w-full text-left py-2" data-testid="terms-of-service-button">
-                <FileText className="w-5 h-5 text-gray-400" />
-                <span className="text-gray-700">Terms of Service</span>
-              </button>
-              
-              <button 
-                onClick={handleLogout}
-                className="flex items-center space-x-3 w-full text-left py-2 text-red-600"
-                data-testid="logout-button"
-              >
-                <LogOut className="w-5 h-5 text-red-600" />
-                <span>Logout</span>
-              </button>
+            <h3 className="text-lg font-semibold mb-4">Goals & Targets</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="text-sm font-medium text-gray-700">Daily Calorie Goal</label>
+                <div className="mt-1">
+                  <span className="text-2xl font-bold text-green-600" data-testid="text-calorie-goal">
+                    {user?.calorieGoal || 2000}
+                  </span>
+                  <span className="text-gray-500 ml-1">calories</span>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Target Weight</label>
+                <div className="mt-1">
+                  <span className="text-2xl font-bold text-blue-600" data-testid="text-goal-weight">
+                    {user?.goalWeight || 68}
+                  </span>
+                  <span className="text-gray-500 ml-1">kg</span>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
-      </main>
+
+        {/* Logout */}
+        <Card>
+          <CardContent className="p-6">
+            <Button
+              onClick={() => logout()}
+              variant="destructive"
+              className="w-full"
+              data-testid="logout-button"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

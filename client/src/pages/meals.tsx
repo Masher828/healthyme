@@ -1,168 +1,119 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useToast } from "@/hooks/use-toast";
-import Header from "@/components/header";
-import NutritionSummary from "@/components/nutrition-summary";
-import MealCategory from "@/components/meal-category";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Utensils, TrendingUp } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertMealSchema } from "@shared/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { isUnauthorizedError } from "@/lib/authUtils";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { mockMeals, addMockMeal, type Meal } from "@/lib/mockData";
 import { z } from "zod";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
-const mealFormSchema = insertMealSchema.extend({
-  protein: z.coerce.number().min(0),
-  carbs: z.coerce.number().min(0),
-  fat: z.coerce.number().min(0),
+// Zod schema for meal form validation
+const mealFormSchema = z.object({
+  name: z.string().min(1, "Meal name is required"),
+  calories: z.number().min(1, "Calories must be positive"),
+  protein: z.number().min(0, "Protein cannot be negative"),
+  carbs: z.number().min(0, "Carbs cannot be negative"),
+  fat: z.number().min(0, "Fat cannot be negative"),
+  mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
 });
 
+type MealFormData = z.infer<typeof mealFormSchema>;
+
 export default function Meals() {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
-  const queryClient = useQueryClient();
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [meals, setMeals] = useState<Meal[]>(mockMeals);
 
-  // Redirect to home if not authenticated
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        title: "Unauthorized",
-        description: "You are logged out. Logging in again...",
-        variant: "destructive",
-      });
-      setTimeout(() => {
-        window.location.href = "/api/login";
-      }, 500);
-      return;
-    }
-  }, [isAuthenticated, isLoading, toast]);
-
-  const today = new Date().toISOString().split('T')[0];
-
-  const { data: meals = [] } = useQuery<any[]>({
-    queryKey: ['/api/meals', today],
-    enabled: isAuthenticated,
-  });
-
-  const form = useForm({
+  const form = useForm<MealFormData>({
     resolver: zodResolver(mealFormSchema),
     defaultValues: {
       name: "",
-      category: "",
       calories: 0,
       protein: 0,
       carbs: 0,
       fat: 0,
-      date: today,
+      mealType: "breakfast",
     },
   });
 
-  const addMealMutation = useMutation({
-    mutationFn: async (data: any) => {
-      await apiRequest("POST", "/api/meals", data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/meals', today] });
-      toast({
-        title: "Success",
-        description: "Meal added successfully!",
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return null; // This will be handled by the router
+  }
+
+  const onSubmit = (data: MealFormData) => {
+    try {
+      const newMeal = addMockMeal({
+        ...data,
+        date: new Date().toISOString().split('T')[0],
       });
-      setDialogOpen(false);
+      
+      setMeals([...meals, newMeal]);
+      setIsDialogOpen(false);
       form.reset();
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+      
+      toast({
+        title: "Meal Added",
+        description: `${data.name} has been added to your meals.`,
+      });
+    } catch (error) {
       toast({
         title: "Error",
         description: "Failed to add meal. Please try again.",
         variant: "destructive",
       });
-    },
-  });
-
-  const deleteMealMutation = useMutation({
-    mutationFn: async (mealId: string) => {
-      await apiRequest("DELETE", `/api/meals/${mealId}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/meals', today] });
-      toast({
-        title: "Success",
-        description: "Meal deleted successfully!",
-      });
-    },
-    onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
-      toast({
-        title: "Error",
-        description: "Failed to delete meal. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: any) => {
-    addMealMutation.mutate(data);
+    }
   };
 
-  const handleDeleteMeal = (mealId: string) => {
-    deleteMealMutation.mutate(mealId);
+  const todaysMeals = meals.filter(meal => 
+    meal.date === new Date().toISOString().split('T')[0]
+  );
+
+  const mealsByType = {
+    breakfast: todaysMeals.filter(meal => meal.mealType === 'breakfast'),
+    lunch: todaysMeals.filter(meal => meal.mealType === 'lunch'),
+    dinner: todaysMeals.filter(meal => meal.mealType === 'dinner'),
+    snack: todaysMeals.filter(meal => meal.mealType === 'snack'),
   };
 
-  if (isLoading || !isAuthenticated) {
-    return null;
-  }
+  const totalCalories = todaysMeals.reduce((sum, meal) => sum + meal.calories, 0);
+  const totalProtein = todaysMeals.reduce((sum, meal) => sum + meal.protein, 0);
+  const totalCarbs = todaysMeals.reduce((sum, meal) => sum + meal.carbs, 0);
+  const totalFat = todaysMeals.reduce((sum, meal) => sum + meal.fat, 0);
 
-  const mealsByCategory = {
-    breakfast: meals.filter((meal: any) => meal.category === 'breakfast'),
-    lunch: meals.filter((meal: any) => meal.category === 'lunch'),
-    dinner: meals.filter((meal: any) => meal.category === 'dinner'),
-    snack: meals.filter((meal: any) => meal.category === 'snack'),
-  };
+  const calorieGoal = user?.calorieGoal || 2000;
+  const remainingCalories = calorieGoal - totalCalories;
 
   return (
-    <div className="pb-20">
-      <Header />
-      
-      <main className="p-4 space-y-6">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Food Diary</h2>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Meals</h1>
+            <p className="text-gray-600">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          </div>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="healthify-primary text-white font-medium" data-testid="add-food-button">
-                + Add Food
+              <Button className="bg-green-600 hover:bg-green-700" data-testid="button-add-meal">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Meal
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Food</DialogTitle>
+                <DialogTitle>Add New Meal</DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -171,9 +122,9 @@ export default function Meals() {
                     name="name"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Food Name</FormLabel>
+                        <FormLabel>Meal Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter food name" {...field} data-testid="food-name-input" />
+                          <Input {...field} placeholder="e.g., Grilled Chicken Salad" data-testid="input-meal-name" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -182,14 +133,14 @@ export default function Meals() {
                   
                   <FormField
                     control={form.control}
-                    name="category"
+                    name="mealType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Category</FormLabel>
+                        <FormLabel>Meal Type</FormLabel>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger data-testid="category-select">
-                              <SelectValue placeholder="Select category" />
+                            <SelectTrigger data-testid="select-meal-type">
+                              <SelectValue placeholder="Select meal type" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -212,7 +163,12 @@ export default function Meals() {
                         <FormItem>
                           <FormLabel>Calories</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0" {...field} data-testid="calories-input" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-calories"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -226,7 +182,12 @@ export default function Meals() {
                         <FormItem>
                           <FormLabel>Protein (g)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0" {...field} data-testid="protein-input" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-protein"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -242,7 +203,12 @@ export default function Meals() {
                         <FormItem>
                           <FormLabel>Carbs (g)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0" {...field} data-testid="carbs-input" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-carbs"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -256,7 +222,12 @@ export default function Meals() {
                         <FormItem>
                           <FormLabel>Fat (g)</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="0" {...field} data-testid="fat-input" />
+                            <Input 
+                              {...field} 
+                              type="number" 
+                              onChange={e => field.onChange(parseInt(e.target.value) || 0)}
+                              data-testid="input-fat"
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -264,13 +235,8 @@ export default function Meals() {
                     />
                   </div>
                   
-                  <Button 
-                    type="submit" 
-                    className="w-full healthify-primary text-white"
-                    disabled={addMealMutation.isPending}
-                    data-testid="submit-meal-button"
-                  >
-                    {addMealMutation.isPending ? "Adding..." : "Add Meal"}
+                  <Button type="submit" className="w-full" data-testid="button-save-meal">
+                    Add Meal
                   </Button>
                 </form>
               </Form>
@@ -278,35 +244,69 @@ export default function Meals() {
           </Dialog>
         </div>
 
-        <NutritionSummary meals={meals} />
+        {/* Calorie Summary */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600" data-testid="text-total-calories">{totalCalories}</div>
+                <div className="text-sm text-gray-600">Calories Consumed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600" data-testid="text-remaining-calories">{remainingCalories}</div>
+                <div className="text-sm text-gray-600">Calories Remaining</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600" data-testid="text-total-protein">{totalProtein}g</div>
+                <div className="text-sm text-gray-600">Protein</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-orange-600" data-testid="text-macros">{totalCarbs}g / {totalFat}g</div>
+                <div className="text-sm text-gray-600">Carbs / Fat</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="space-y-4">
-          <MealCategory 
-            title="Breakfast" 
-            meals={mealsByCategory.breakfast} 
-            onDeleteMeal={handleDeleteMeal}
-            isDeleting={deleteMealMutation.isPending}
-          />
-          <MealCategory 
-            title="Lunch" 
-            meals={mealsByCategory.lunch} 
-            onDeleteMeal={handleDeleteMeal}
-            isDeleting={deleteMealMutation.isPending}
-          />
-          <MealCategory 
-            title="Dinner" 
-            meals={mealsByCategory.dinner} 
-            onDeleteMeal={handleDeleteMeal}
-            isDeleting={deleteMealMutation.isPending}
-          />
-          <MealCategory 
-            title="Snacks" 
-            meals={mealsByCategory.snack} 
-            onDeleteMeal={handleDeleteMeal}
-            isDeleting={deleteMealMutation.isPending}
-          />
+        {/* Meal Lists */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {Object.entries(mealsByType).map(([mealType, meals]) => (
+            <Card key={mealType}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 capitalize">
+                  <Utensils className="w-5 h-5" />
+                  {mealType}
+                  <span className="text-sm font-normal text-gray-500">
+                    ({meals.reduce((sum, meal) => sum + meal.calories, 0)} cal)
+                  </span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {meals.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No meals logged yet</p>
+                  ) : (
+                    meals.map((meal) => (
+                      <div key={meal.id} className="flex justify-between items-start p-3 bg-gray-50 rounded-lg" data-testid={`meal-${meal.id}`}>
+                        <div>
+                          <h4 className="font-medium">{meal.name}</h4>
+                          <p className="text-sm text-gray-600">
+                            {meal.protein}g protein • {meal.carbs}g carbs • {meal.fat}g fat
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold">{meal.calories}</div>
+                          <div className="text-xs text-gray-500">calories</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

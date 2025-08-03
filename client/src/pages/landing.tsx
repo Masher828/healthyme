@@ -1,10 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Apple, Dumbbell, TrendingUp } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
+  const { login } = useAuth();
+
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    login();
   };
 
   return (
@@ -64,7 +67,7 @@ export default function Landing() {
               </p>
               <Button 
                 onClick={handleLogin}
-                className="w-full healthify-primary text-white hover:healthify-primary-dark text-lg py-6"
+                className="w-full bg-primary text-white hover:bg-primary/90 text-lg py-6"
                 data-testid="login-button"
               >
                 Get Started - Sign In

@@ -1,71 +1,108 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip } from 'recharts';
+import { format, parseISO } from 'date-fns';
 
-export default function WeightChart() {
-  const { data: weightEntries = [] } = useQuery<any[]>({
-    queryKey: ['/api/weight'],
-  });
+interface WeightEntry {
+  id: string;
+  weight: string;
+  date: string;
+}
 
-  // Get last 7 entries for the chart
-  const chartData = weightEntries.slice(0, 7).reverse();
-  const currentWeight = weightEntries[0]?.weight ? parseFloat(weightEntries[0].weight) : 0;
+interface WeightChartProps {
+  data: WeightEntry[];
+}
 
-  const getDayLabel = (date: string, index: number) => {
-    const dateObj = new Date(date);
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return days[dateObj.getDay()];
-  };
+export function WeightChart({ data }: WeightChartProps) {
+  // Transform data for the chart
+  const chartData = data
+    .map(entry => ({
+      date: entry.date,
+      weight: parseFloat(entry.weight),
+      displayDate: format(parseISO(entry.date), 'MMM d'),
+      fullDate: format(parseISO(entry.date), 'MMM d, yyyy')
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  const getBarHeight = (weight: number, maxWeight: number) => {
-    if (maxWeight === 0) return 20;
-    return Math.max(20, (weight / maxWeight) * 80);
-  };
+  if (chartData.length === 0) {
+    return (
+      <div className="h-64 flex items-center justify-center text-gray-500">
+        <div className="text-center">
+          <p className="text-lg mb-2">No weight data available</p>
+          <p className="text-sm">Start logging your weight to see progress charts</p>
+        </div>
+      </div>
+    );
+  }
 
-  const maxWeight = Math.max(...chartData.map((entry: any) => parseFloat(entry.weight || 0)));
+  // Calculate weight change
+  const firstWeight = chartData[0]?.weight || 0;
+  const lastWeight = chartData[chartData.length - 1]?.weight || 0;
+  const weightChange = lastWeight - firstWeight;
+  const changeColor = weightChange <= 0 ? '#22c55e' : '#ef4444';
 
   return (
-    <Card className="shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Weight Progress</h3>
-          <span className="text-sm text-gray-500">Last 7 days</span>
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="flex justify-between items-center">
+        <div>
+          <span className="text-sm text-gray-600">Weight change: </span>
+          <span 
+            className="font-semibold"
+            style={{ color: changeColor }}
+            data-testid="text-weight-change"
+          >
+            {weightChange > 0 ? '+' : ''}{weightChange.toFixed(1)} kg
+          </span>
         </div>
-        {chartData.length > 0 ? (
-          <>
-            <div className="flex items-end justify-between h-32 mb-4">
-              {chartData.map((entry: any, index: number) => {
-                const weight = parseFloat(entry.weight || 0);
-                const height = getBarHeight(weight, maxWeight);
-                const isLatest = index === chartData.length - 1;
-                
-                return (
-                  <div key={entry.id || index} className="flex flex-col items-center">
-                    <div 
-                      className={`w-6 rounded-t chart-bar mb-2 ${isLatest ? 'bg-primary' : 'bg-primary/70'}`}
-                      style={{ height: `${height}px` }}
-                      data-testid={`weight-bar-${index}`}
-                    ></div>
-                    <span className="text-xs text-gray-500">
-                      {getDayLabel(entry.date, index)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="text-center">
-              <p className="text-2xl font-bold text-gray-900" data-testid="current-weight-display">
-                {currentWeight.toFixed(1)} kg
-              </p>
-              <p className="text-sm text-gray-600">Current weight</p>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>No weight data available</p>
-            <p className="text-sm mt-1">Start tracking your weight to see progress</p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        <div className="text-sm text-gray-600">
+          {chartData.length} entries over {chartData.length > 1 ? 
+            Math.ceil((new Date(chartData[chartData.length - 1].date).getTime() - new Date(chartData[0].date).getTime()) / (1000 * 60 * 60 * 24)) : 0} days
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div className="h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+            <XAxis 
+              dataKey="displayDate" 
+              stroke="#6b7280"
+              fontSize={12}
+              tick={{ fontSize: 12 }}
+            />
+            <YAxis 
+              stroke="#6b7280"
+              fontSize={12}
+              tick={{ fontSize: 12 }}
+              domain={['dataMin - 2', 'dataMax + 2']}
+            />
+            <Tooltip 
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  return (
+                    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                      <p className="font-medium">{data.fullDate}</p>
+                      <p className="text-blue-600">
+                        Weight: <span className="font-semibold">{data.weight} kg</span>
+                      </p>
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="weight" 
+              stroke="#3b82f6" 
+              strokeWidth={2}
+              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
   );
 }
