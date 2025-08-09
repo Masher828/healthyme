@@ -2,12 +2,22 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Heart, Apple, Dumbbell, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Landing() {
   const { login } = useAuth();
+  const { toast } = useToast();
 
-  const handleLogin = () => {
-    login();
+  const handleLogin = async () => {
+    try {
+      await login();
+    } catch (error) {
+      toast({
+        title: "Login Failed",
+        description: "Unable to connect to server. Please ensure the server at localhost:8080 is running.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

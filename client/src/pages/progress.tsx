@@ -9,10 +9,18 @@ import { WeightChart } from "@/components/weight-chart";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { mockWeightEntries, addMockWeightEntry, type WeightEntry } from "@/lib/mockData";
+import { progressApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+
+// Define WeightEntry type for server data
+interface WeightEntry {
+  id: string;
+  weight: string;
+  date: string;
+}
 
 const weightFormSchema = z.object({
   weight: z.string().min(1, "Weight is required"),
@@ -24,8 +32,39 @@ type WeightFormData = z.infer<typeof weightFormSchema>;
 export default function Progress() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>(mockWeightEntries);
+
+  // Fetch weight entries from server
+  const { data: weightEntries = [], isLoading: weightLoading } = useQuery({
+    queryKey: ['weight-entries'],
+    queryFn: () => progressApi.getWeightEntries(),
+    enabled: isAuthenticated,
+  });
+
+  // Mutation for adding weight entries
+  const addWeightMutation = useMutation({
+    mutationFn: progressApi.addWeightEntry,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['weight-entries'] });
+      setIsDialogOpen(false);
+      form.reset({
+        weight: "",
+        date: new Date().toISOString().split('T')[0],
+      });
+      toast({
+        title: "Weight Entry Added",
+        description: `Weight of ${data.weight} kg recorded successfully.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add weight entry. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const form = useForm<WeightFormData>({
     resolver: zodResolver(weightFormSchema),

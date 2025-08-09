@@ -9,10 +9,21 @@ import { Plus, Dumbbell, Clock, Flame } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { mockWorkouts, addMockWorkout, type Workout } from "@/lib/mockData";
+import { workoutsApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+
+// Define Workout type for server data
+interface Workout {
+  id: string;
+  name: string;
+  duration: number;
+  caloriesBurned: number;
+  exercises: string;
+  date: string;
+}
 
 const workoutFormSchema = z.object({
   name: z.string().min(1, "Workout name is required"),
@@ -26,8 +37,37 @@ type WorkoutFormData = z.infer<typeof workoutFormSchema>;
 export default function Workouts() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [workouts, setWorkouts] = useState<Workout[]>(mockWorkouts);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch workouts from server
+  const { data: workouts = [], isLoading: workoutsLoading } = useQuery({
+    queryKey: ['workouts', today],
+    queryFn: () => workoutsApi.getWorkouts(today),
+    enabled: isAuthenticated,
+  });
+
+  // Mutation for adding workouts
+  const addWorkoutMutation = useMutation({
+    mutationFn: workoutsApi.addWorkout,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workouts'] });
+      setIsDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Workout Added",
+        description: "Your workout has been logged successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add workout. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const form = useForm<WorkoutFormData>({
     resolver: zodResolver(workoutFormSchema),
@@ -39,7 +79,7 @@ export default function Workouts() {
     },
   });
 
-  if (isLoading) {
+  if (isLoading || workoutsLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
@@ -48,32 +88,13 @@ export default function Workouts() {
   }
 
   const onSubmit = (data: WorkoutFormData) => {
-    try {
-      const newWorkout = addMockWorkout({
-        ...data,
-        date: new Date().toISOString().split('T')[0],
-      });
-
-      setWorkouts([...workouts, newWorkout]);
-      setIsDialogOpen(false);
-      form.reset();
-
-      toast({
-        title: "Workout Added",
-        description: `${data.name} has been logged successfully.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add workout. Please try again.",
-        variant: "destructive",
-      });
-    }
+    addWorkoutMutation.mutate({
+      ...data,
+      date: today,
+    });
   };
 
-  const todaysWorkouts = workouts.filter(workout => 
-    workout.date === new Date().toISOString().split('T')[0]
-  );
+  const todaysWorkouts = workouts;
 
   const totalDuration = todaysWorkouts.reduce((sum, workout) => sum + workout.duration, 0);
   const totalCaloriesBurned = todaysWorkouts.reduce((sum, workout) => sum + workout.caloriesBurned, 0);

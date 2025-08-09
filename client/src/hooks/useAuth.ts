@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { authApi } from "@/lib/api";
 
-// Mock user type for client-only demo
+// User type for server integration
 export interface User {
   id: string;
   email: string;
@@ -17,53 +18,58 @@ export interface User {
   updatedAt: Date;
 }
 
-// Mock user data for client-only demo
-const mockUser: User = {
-  id: "1",
-  email: "demo@healthifyme.com",
-  firstName: "Demo",
-  lastName: "User",
-  profileImageUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face&auto=format",
-  currentWeight: 75,
-  goalWeight: 68,
-  height: 175,
-  age: 28,
-  activityLevel: "moderate",
-  calorieGoal: 2000,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
-
 export function useAuth() {
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading time
-    const timer = setTimeout(() => {
-      // Check if user is "logged in" from localStorage
-      const savedAuth = localStorage.getItem("demo_authenticated");
-      setIsAuthenticated(savedAuth === "true");
-      setIsLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    // Check authentication status on app load
+    checkAuthStatus();
   }, []);
 
-  const login = () => {
-    localStorage.setItem("demo_authenticated", "true");
-    setIsAuthenticated(true);
-    // Force page refresh to trigger authentication state change
-    window.location.reload();
+  const checkAuthStatus = async () => {
+    try {
+      const userData = await authApi.getUser();
+      setUser(userData);
+      setIsAuthenticated(true);
+    } catch (error) {
+      // User not authenticated
+      setUser(null);
+      setIsAuthenticated(false);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const logout = () => {
-    localStorage.removeItem("demo_authenticated");
-    setIsAuthenticated(false);
+  const login = async (email: string = "demo@healthifyme.com", password: string = "demo123") => {
+    try {
+      setIsLoading(true);
+      const response = await authApi.login({ email, password });
+      setUser(response.user);
+      setIsAuthenticated(true);
+      window.location.reload(); // Refresh to ensure clean state
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   };
 
   return {
-    user: isAuthenticated ? mockUser : null,
+    user,
     isLoading,
     isAuthenticated,
     login,

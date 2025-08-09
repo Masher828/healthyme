@@ -9,10 +9,23 @@ import { Plus, Utensils, TrendingUp } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { mockMeals, addMockMeal, type Meal } from "@/lib/mockData";
+import { mealsApi } from "@/lib/api";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+
+// Define Meal type for server data
+interface Meal {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack';
+  date: string;
+}
 
 // Zod schema for meal form validation
 const mealFormSchema = z.object({
@@ -29,8 +42,37 @@ type MealFormData = z.infer<typeof mealFormSchema>;
 export default function Meals() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [meals, setMeals] = useState<Meal[]>(mockMeals);
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch meals from server
+  const { data: meals = [], isLoading: mealsLoading } = useQuery({
+    queryKey: ['meals', today],
+    queryFn: () => mealsApi.getMeals(today),
+    enabled: isAuthenticated,
+  });
+
+  // Mutation for adding meals
+  const addMealMutation = useMutation({
+    mutationFn: mealsApi.addMeal,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meals'] });
+      setIsDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Meal Added",
+        description: "Your meal has been logged successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add meal. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const form = useForm<MealFormData>({
     resolver: zodResolver(mealFormSchema),
@@ -44,7 +86,7 @@ export default function Meals() {
     },
   });
 
-  if (isLoading) {
+  if (isLoading || mealsLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
@@ -53,32 +95,13 @@ export default function Meals() {
   }
 
   const onSubmit = (data: MealFormData) => {
-    try {
-      const newMeal = addMockMeal({
-        ...data,
-        date: new Date().toISOString().split('T')[0],
-      });
-      
-      setMeals([...meals, newMeal]);
-      setIsDialogOpen(false);
-      form.reset();
-      
-      toast({
-        title: "Meal Added",
-        description: `${data.name} has been added to your meals.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add meal. Please try again.",
-        variant: "destructive",
-      });
-    }
+    addMealMutation.mutate({
+      ...data,
+      date: today,
+    });
   };
 
-  const todaysMeals = meals.filter(meal => 
-    meal.date === new Date().toISOString().split('T')[0]
-  );
+  const todaysMeals = meals;
 
   const mealsByType = {
     breakfast: todaysMeals.filter(meal => meal.mealType === 'breakfast'),
@@ -87,10 +110,10 @@ export default function Meals() {
     snack: todaysMeals.filter(meal => meal.mealType === 'snack'),
   };
 
-  const totalCalories = todaysMeals.reduce((sum, meal) => sum + meal.calories, 0);
-  const totalProtein = todaysMeals.reduce((sum, meal) => sum + meal.protein, 0);
-  const totalCarbs = todaysMeals.reduce((sum, meal) => sum + meal.carbs, 0);
-  const totalFat = todaysMeals.reduce((sum, meal) => sum + meal.fat, 0);
+  const totalCalories = todaysMeals.reduce((sum: number, meal: Meal) => sum + meal.calories, 0);
+  const totalProtein = todaysMeals.reduce((sum: number, meal: Meal) => sum + meal.protein, 0);
+  const totalCarbs = todaysMeals.reduce((sum: number, meal: Meal) => sum + meal.carbs, 0);
+  const totalFat = todaysMeals.reduce((sum: number, meal: Meal) => sum + meal.fat, 0);
 
   const calorieGoal = user?.calorieGoal || 2000;
   const remainingCalories = calorieGoal - totalCalories;

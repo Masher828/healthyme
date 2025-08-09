@@ -6,28 +6,40 @@ import { Progress } from "@/components/ui/progress";
 import { CalorieRing } from "@/components/calorie-ring";
 import { WaterTracker } from "@/components/water-tracker";
 import { Plus, TrendingUp, Utensils, Dumbbell, Droplets } from "lucide-react";
-import { mockMeals, mockWorkouts, mockWaterIntake } from "@/lib/mockData";
+import { mealsApi, workoutsApi, waterApi } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 
 export default function Home() {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
-  const [waterGlasses, setWaterGlasses] = useState(mockWaterIntake.glasses);
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const today = new Date().toISOString().split('T')[0];
 
-  if (isLoading) {
+  // Fetch today's data from the server
+  const { data: todaysMeals = [], isLoading: mealsLoading } = useQuery({
+    queryKey: ['meals', today],
+    queryFn: () => mealsApi.getMeals(today),
+    enabled: isAuthenticated,
+  });
+
+  const { data: todaysWorkouts = [], isLoading: workoutsLoading } = useQuery({
+    queryKey: ['workouts', today],
+    queryFn: () => workoutsApi.getWorkouts(today),
+    enabled: isAuthenticated,
+  });
+
+  const { data: waterIntake, isLoading: waterLoading, refetch: refetchWater } = useQuery({
+    queryKey: ['water-intake', today],
+    queryFn: () => waterApi.getWaterIntake(today),
+    enabled: isAuthenticated,
+  });
+
+  if (isLoading || mealsLoading || workoutsLoading || waterLoading) {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
   if (!isAuthenticated) {
     return null; // This will be handled by the router
   }
-
-  const todaysMeals = mockMeals.filter(meal => 
-    meal.date === new Date().toISOString().split('T')[0]
-  );
-
-  const todaysWorkouts = mockWorkouts.filter(workout => 
-    workout.date === new Date().toISOString().split('T')[0]
-  );
 
   const totalCalories = todaysMeals.reduce((sum, meal) => sum + meal.calories, 0);
   const caloriesBurned = todaysWorkouts.reduce((sum, workout) => sum + workout.caloriesBurned, 0);
@@ -36,6 +48,7 @@ export default function Home() {
   const remainingCalories = Math.max(0, calorieGoal - netCalories);
 
   const calorieProgress = Math.min(100, (totalCalories / calorieGoal) * 100);
+  const waterGlasses = waterIntake?.glasses || 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 pb-24">
