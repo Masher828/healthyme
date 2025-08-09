@@ -20,7 +20,7 @@ export default function Profile() {
   const bmi = height > 0 && currentWeight > 0 ? (currentWeight / ((height / 100) ** 2)).toFixed(1) : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 p-4 pb-24">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div>
@@ -192,7 +192,7 @@ export default function Profile() {
         </Card>
 
         {/* Logout */}
-        <Card>
+        <Card className="mb-8">
           <CardContent className="p-6">
             <Button
               onClick={() => logout()}

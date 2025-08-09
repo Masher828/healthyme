@@ -53,6 +53,8 @@ export function useAuth() {
   const login = () => {
     localStorage.setItem("demo_authenticated", "true");
     setIsAuthenticated(true);
+    // Force page refresh to trigger authentication state change
+    window.location.reload();
   };
 
   const logout = () => {

@@ -38,7 +38,7 @@ export default function Home() {
   const calorieProgress = Math.min(100, (totalCalories / calorieGoal) * 100);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-4 pb-24">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Welcome Header */}
         <div className="text-center space-y-2">
